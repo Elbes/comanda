@@ -36,3 +36,13 @@ export const PEDIDO_STATUS_COLORS: Record<string, string> = {
   entregue: 'bg-gray-100 text-gray-600',
   cancelado: 'bg-red-100 text-red-800',
 };
+
+export const LANCADO_POR_LABELS: Record<string, string> = {
+  cliente: 'Cliente',
+  garcom: 'Garçom',
+};
+
+export const LANCADO_POR_COLORS: Record<string, string> = {
+  cliente: 'bg-gray-100 text-gray-700',
+  garcom: 'bg-amber-100 text-amber-800',
+};

@@ -9,7 +9,12 @@ import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { formatCurrency } from '@/lib/utils/currency';
-import { PEDIDO_STATUS_LABELS, PEDIDO_STATUS_COLORS } from '@/lib/utils/constants';
+import {
+  LANCADO_POR_COLORS,
+  LANCADO_POR_LABELS,
+  PEDIDO_STATUS_LABELS,
+  PEDIDO_STATUS_COLORS,
+} from '@/lib/utils/constants';
 import type {
   Table,
   Comanda,
@@ -206,9 +211,16 @@ export function ClienteApp({
                 return (
                   <Card key={order.id}>
                     <div className="flex items-center justify-between mb-2">
-                      <Badge color={PEDIDO_STATUS_COLORS[order.status]}>
-                        {PEDIDO_STATUS_LABELS[order.status]}
-                      </Badge>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Badge color={PEDIDO_STATUS_COLORS[order.status]}>
+                          {PEDIDO_STATUS_LABELS[order.status]}
+                        </Badge>
+                        {order.launched_by === 'garcom' && (
+                          <Badge color={LANCADO_POR_COLORS.garcom}>
+                            {LANCADO_POR_LABELS.garcom}
+                          </Badge>
+                        )}
+                      </div>
                       <span className="text-xs text-gray-400">
                         {new Date(order.created_at).toLocaleTimeString('pt-BR', {
                           hour: '2-digit',
@@ -254,6 +266,11 @@ export function ClienteApp({
                         <li key={item.id} className="flex justify-between gap-2">
                           <span>
                             {item.quantity}x {item.menu_item?.name ?? 'Item'}
+                            {order.launched_by === 'garcom' && (
+                              <span className="ml-1 text-xs font-medium text-amber-700">
+                                · {LANCADO_POR_LABELS.garcom}
+                              </span>
+                            )}
                           </span>
                           <span className="shrink-0">
                             {formatCurrency(Number(item.unit_price) * Number(item.quantity))}

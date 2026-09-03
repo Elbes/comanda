@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   openComandaByStaff,
@@ -9,11 +9,16 @@ import {
 import { createPedido } from '@/lib/actions/pedidos';
 import { closeAccount, calculateCloseAccount } from '@/lib/actions/fechamento';
 import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { formatCurrency } from '@/lib/utils/currency';
-import { MESA_STATUS_LABELS } from '@/lib/utils/constants';
+import {
+  LANCADO_POR_COLORS,
+  LANCADO_POR_LABELS,
+  MESA_STATUS_LABELS,
+} from '@/lib/utils/constants';
 import type {
   Table,
   MenuCategory,
@@ -32,6 +37,7 @@ interface ComandaData {
     id: string;
     status: string;
     person_id: string;
+    launched_by: string;
     order_items: Array<{
       quantity: number;
       unit_price: number;
@@ -69,7 +75,7 @@ function peopleOf(comanda: ComandaData | null): ComandaPerson[] {
   return [];
 }
 
-export function GarcomPanel({ tables, menuItems }: Props) {
+export function GarcomPanel({ tables, categories, menuItems }: Props) {
   const router = useRouter();
   const [tableNumber, setTableNumber] = useState('');
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
@@ -87,6 +93,25 @@ export function GarcomPanel({ tables, menuItems }: Props) {
   } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState(categories[0]?.id ?? '');
+
+  const availableItems = useMemo(
+    () => menuItems.filter((item) => item.available),
+    [menuItems]
+  );
+  const menuCategories = useMemo(() => {
+    const withItems = categories.filter((cat) =>
+      availableItems.some((item) => item.category_id === cat.id)
+    );
+    return withItems.length ? withItems : categories;
+  }, [categories, availableItems]);
+  const activeCategory = menuCategories.some((cat) => cat.id === selectedCategory)
+    ? selectedCategory
+    : (menuCategories[0]?.id ?? '');
+  const categoryItems = useMemo(
+    () => availableItems.filter((item) => item.category_id === activeCategory),
+    [availableItems, activeCategory]
+  );
 
   const comanda = comandas.find((c) => c.id === selectedComandaId) ?? comandas[0] ?? null;
   const selectedPerson = peopleOf(comanda)[0];
@@ -290,15 +315,37 @@ export function GarcomPanel({ tables, menuItems }: Props) {
                 <h3 className="font-semibold mb-3">
                   Lançar pedido para {selectedPerson?.name ?? '—'}
                 </h3>
-                <div className="space-y-2 max-h-48 overflow-y-auto mb-3">
-                  {menuItems
-                    .filter((i) => i.available)
-                    .map((item) => (
+                <div className="mb-3 flex gap-2 overflow-x-auto pb-1">
+                  {menuCategories.map((cat) => (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      onClick={() => setSelectedCategory(cat.id)}
+                      className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-medium ${
+                        activeCategory === cat.id
+                          ? 'bg-amber-600 text-white'
+                          : 'bg-gray-100 text-gray-700'
+                      }`}
+                    >
+                      {cat.name}
+                    </button>
+                  ))}
+                </div>
+                <div className="space-y-2 max-h-64 overflow-y-auto mb-3">
+                  {categoryItems.length === 0 ? (
+                    <p className="text-sm text-gray-500">Nenhum item nesta categoria.</p>
+                  ) : (
+                    categoryItems.map((item) => (
                       <div key={item.id} className="flex justify-between items-center text-sm">
-                        <span>{item.name} — {formatCurrency(Number(item.price))}</span>
-                        <Button size="sm" onClick={() => addToCart(item)}>+</Button>
+                        <span>
+                          {item.name} — {formatCurrency(Number(item.price))}
+                        </span>
+                        <Button size="sm" onClick={() => addToCart(item)}>
+                          +
+                        </Button>
                       </div>
-                    ))}
+                    ))
+                  )}
                 </div>
                 {cart.length > 0 && (
                   <div className="border-t pt-3">
@@ -322,7 +369,16 @@ export function GarcomPanel({ tables, menuItems }: Props) {
                   <div className="space-y-2">
                     {comanda.orders?.map((order) => (
                       <div key={order.id} className="text-sm border-b pb-2">
-                        <p className="font-medium">{order.comanda_person?.name}</p>
+                        <div className="mb-1 flex items-center justify-between gap-2">
+                          <p className="font-medium">{order.comanda_person?.name}</p>
+                          <Badge
+                            color={
+                              LANCADO_POR_COLORS[order.launched_by] ?? LANCADO_POR_COLORS.cliente
+                            }
+                          >
+                            {LANCADO_POR_LABELS[order.launched_by] ?? 'Cliente'}
+                          </Badge>
+                        </div>
                         {order.order_items?.map((item, idx) => (
                           <p key={idx} className="text-gray-600">
                             {item.quantity}x {item.menu_item?.name} —{' '}
