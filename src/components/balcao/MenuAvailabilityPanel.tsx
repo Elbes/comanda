@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { toggleMenuItemAvailability } from '@/lib/actions/gerencia';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { MenuItemPhoto } from '@/components/menu/MenuItemPhoto';
 import type { MenuItem, MenuCategory } from '@/lib/types/database';
 
 interface Props {
@@ -37,12 +38,15 @@ export function MenuAvailabilityPanel({ categories, items }: Props) {
             <h3 className="font-semibold text-gray-700 mb-2">{cat.name}</h3>
             <div className="grid gap-2 sm:grid-cols-2">
               {catItems.map((item) => (
-                <Card key={item.id} className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">{item.name}</p>
-                    <p className={`text-xs ${item.available ? 'text-green-600' : 'text-red-600'}`}>
-                      {item.available ? 'Disponível' : 'Esgotado'}
-                    </p>
+                <Card key={item.id} className="flex items-center justify-between gap-3">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <MenuItemPhoto src={item.image_url} alt={item.name} size="sm" />
+                    <div>
+                      <p className="font-medium">{item.name}</p>
+                      <p className={`text-xs ${item.available ? 'text-green-600' : 'text-red-600'}`}>
+                        {item.available ? 'Disponível' : 'Esgotado'}
+                      </p>
+                    </div>
                   </div>
                   <Button
                     size="sm"

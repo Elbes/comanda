@@ -11,6 +11,7 @@ import { closeAccount, calculateCloseAccount } from '@/lib/actions/fechamento';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
+import { MenuItemPhoto } from '@/components/menu/MenuItemPhoto';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { formatCurrency } from '@/lib/utils/currency';
@@ -336,10 +337,13 @@ export function GarcomPanel({ tables, categories, menuItems }: Props) {
                     <p className="text-sm text-gray-500">Nenhum item nesta categoria.</p>
                   ) : (
                     categoryItems.map((item) => (
-                      <div key={item.id} className="flex justify-between items-center text-sm">
-                        <span>
-                          {item.name} — {formatCurrency(Number(item.price))}
-                        </span>
+                      <div key={item.id} className="flex items-center justify-between gap-2 text-sm">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <MenuItemPhoto src={item.image_url} alt={item.name} size="sm" />
+                          <span className="truncate">
+                            {item.name} — {formatCurrency(Number(item.price))}
+                          </span>
+                        </div>
                         <Button size="sm" onClick={() => addToCart(item)}>
                           +
                         </Button>

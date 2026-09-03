@@ -302,12 +302,77 @@ export async function createMenuCategory(
   return { success: true };
 }
 
+const MENU_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+
+async function ensureMenuImagesBucket() {
+  const admin = createAdminClient();
+  const { data: buckets } = await admin.storage.listBuckets();
+  if (buckets?.some((bucket) => bucket.id === 'menu-images')) return { error: null };
+
+  const { error } = await admin.storage.createBucket('menu-images', {
+    public: true,
+    fileSizeLimit: 5242880,
+    allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
+  });
+
+  if (error && !/already exists/i.test(error.message)) {
+    return { error };
+  }
+  return { error: null };
+}
+
+export async function uploadMenuItemImage(
+  formData: FormData
+): Promise<{ success: boolean; url?: string; error?: string }> {
+  const { error: authError } = await requireGerencia();
+  if (authError) return { success: false, error: authError };
+
+  const file = formData.get('file');
+  if (!(file instanceof File) || file.size === 0) {
+    return { success: false, error: 'Selecione uma imagem.' };
+  }
+  if (file.size > 4 * 1024 * 1024) {
+    return { success: false, error: 'A imagem deve ter no máximo 4 MB.' };
+  }
+  if (!MENU_IMAGE_TYPES.has(file.type)) {
+    return { success: false, error: 'Use uma imagem JPG, PNG ou WEBP.' };
+  }
+
+  const bucketReady = await ensureMenuImagesBucket();
+  if (bucketReady.error) {
+    return { success: false, error: 'Não foi possível preparar o armazenamento de imagens.' };
+  }
+
+  const ext =
+    file.type === 'image/png'
+      ? 'png'
+      : file.type === 'image/webp'
+        ? 'webp'
+        : file.type === 'image/gif'
+          ? 'gif'
+          : 'jpg';
+  const path = `${crypto.randomUUID()}.${ext}`;
+  const admin = createAdminClient();
+  const { error } = await admin.storage.from('menu-images').upload(path, await file.arrayBuffer(), {
+    contentType: file.type,
+    upsert: false,
+  });
+
+  if (error) {
+    return { success: false, error: 'Erro ao enviar a imagem.' };
+  }
+
+  const { data } = admin.storage.from('menu-images').getPublicUrl(path);
+  return { success: true, url: data.publicUrl };
+}
+
 export async function createMenuItem(data: {
   category_id: string;
   name: string;
   description?: string;
   price: number;
   display_order?: number;
+  image_url?: string;
 }): Promise<{ success: boolean; error?: string }> {
   const admin = createAdminClient();
   const { error } = await admin.from('menu_items').insert(data);
@@ -324,6 +389,7 @@ export async function updateMenuItem(
     category_id: string;
     available: boolean;
     display_order: number;
+    image_url: string | null;
   }>
 ): Promise<{ success: boolean; error?: string }> {
   const admin = createAdminClient();

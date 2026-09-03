@@ -6,6 +6,7 @@ import { requestPayment } from '@/lib/actions/comanda';
 import { useMyOrders } from '@/hooks/useRealtimeOrders';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { MenuItemPhoto } from '@/components/menu/MenuItemPhoto';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/ui/Modal';
 import { formatCurrency } from '@/lib/utils/currency';
@@ -180,17 +181,18 @@ export function ClienteApp({
 
             <div className="space-y-3">
               {filteredItems.map((item) => (
-                <Card key={item.id} className="flex items-center justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-medium">{item.name}</h3>
+                <Card key={item.id} className="flex items-center gap-3 !p-3">
+                  <MenuItemPhoto src={item.image_url} alt={item.name} size="md" />
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-medium leading-tight">{item.name}</h3>
                     {item.description && (
-                      <p className="text-sm text-gray-500 truncate">{item.description}</p>
+                      <p className="mt-0.5 text-sm text-gray-500 line-clamp-2">{item.description}</p>
                     )}
                     <p className="mt-1 font-semibold text-amber-700">
                       {formatCurrency(Number(item.price))}
                     </p>
                   </div>
-                  <Button size="sm" onClick={() => addToCart(item)}>
+                  <Button size="sm" className="self-end" onClick={() => addToCart(item)}>
                     +
                   </Button>
                 </Card>
