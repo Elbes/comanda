@@ -80,6 +80,26 @@ export async function createPedido(
   return { success: true, orderId: order.id };
 }
 
+export async function getMyOrders() {
+  const session = await getClientSession();
+  if (!session.person || !session.comanda) {
+    return { orders: [] as Array<Record<string, unknown>> };
+  }
+
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from('orders')
+    .select(`
+      *,
+      order_items(*, menu_item:menu_items(name, price))
+    `)
+    .eq('comanda_id', session.comanda.id)
+    .eq('person_id', session.person.id)
+    .order('created_at', { ascending: false });
+
+  return { orders: data ?? [] };
+}
+
 export async function updatePedidoStatus(
   orderId: string,
   status: string

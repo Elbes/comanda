@@ -2,71 +2,35 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import type { Order, OrderItem } from '@/lib/types/database';
+import { getMyOrders } from '@/lib/actions/pedidos';
 
 interface OrderWithDetails extends Order {
   order_items: (OrderItem & { menu_item?: { name: string } })[];
   comanda_person?: { name: string };
 }
 
-export function useRealtimeOrders(
-  comandaId: string | null,
-  sessionToken?: string,
-  filter?: 'active' | 'all'
-) {
+export function useMyOrders(enabled: boolean) {
   const [orders, setOrders] = useState<OrderWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
 
+  async function fetchOrders() {
+    const result = await getMyOrders();
+    setOrders((result.orders as OrderWithDetails[]) ?? []);
+    setLoading(false);
+  }
+
   useEffect(() => {
-    if (!comandaId) {
+    if (!enabled) {
       setLoading(false);
       return;
     }
 
-    const supabase = createClient(sessionToken);
-
-    async function fetchOrders() {
-      let query = supabase
-        .from('orders')
-        .select(`
-          *,
-          order_items(*, menu_item:menu_items(name)),
-          comanda_person:comanda_people(name)
-        `)
-        .eq('comanda_id', comandaId)
-        .order('created_at', { ascending: false });
-
-      if (filter === 'active') {
-        query = query.in('status', ['pendente', 'em_preparo', 'pronto']);
-      }
-
-      const { data } = await query;
-      setOrders((data as OrderWithDetails[]) ?? []);
-      setLoading(false);
-    }
-
     fetchOrders();
+    const interval = setInterval(fetchOrders, 4000);
+    return () => clearInterval(interval);
+  }, [enabled]);
 
-    const channel = supabase
-      .channel(`orders-${comandaId}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'orders', filter: `comanda_id=eq.${comandaId}` },
-        () => fetchOrders()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'order_items' },
-        () => fetchOrders()
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [comandaId, sessionToken, filter]);
-
-  return { orders, loading };
+  return { orders, loading, refresh: fetchOrders };
 }
 
 export function useRealtimeCounterOrders() {

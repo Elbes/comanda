@@ -47,11 +47,6 @@ export default async function MesaPage({ params }: PageProps) {
       .eq('available', true)
       .order('display_order');
 
-    const { data: people } = await admin
-      .from('comanda_people')
-      .select('*')
-      .eq('comanda_id', session.comanda.id);
-
     return (
       <ClienteApp
         table={session.table}
@@ -59,7 +54,6 @@ export default async function MesaPage({ params }: PageProps) {
         person={session.person}
         categories={categories ?? []}
         menuItems={items ?? []}
-        people={people ?? []}
       />
     );
   }

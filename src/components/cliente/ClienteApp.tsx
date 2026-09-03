@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { createPedido } from '@/lib/actions/pedidos';
 import { requestPayment } from '@/lib/actions/comanda';
-import { useRealtimeOrders } from '@/hooks/useRealtimeOrders';
+import { useMyOrders } from '@/hooks/useRealtimeOrders';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
@@ -25,7 +25,6 @@ interface Props {
   person: ComandaPerson;
   categories: MenuCategory[];
   menuItems: MenuItem[];
-  people: ComandaPerson[];
 }
 
 type Tab = 'cardapio' | 'pedidos' | 'conta';
@@ -36,7 +35,6 @@ export function ClienteApp({
   person,
   categories,
   menuItems,
-  people,
 }: Props) {
   const [tab, setTab] = useState<Tab>('cardapio');
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -46,7 +44,7 @@ export function ClienteApp({
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
 
-  const { orders, loading: ordersLoading } = useRealtimeOrders(comanda.id);
+  const { orders, loading: ordersLoading, refresh } = useMyOrders(true);
 
   const filteredItems = useMemo(
     () => menuItems.filter((i) => i.category_id === selectedCategory),
@@ -55,16 +53,19 @@ export function ClienteApp({
 
   const cartTotal = cart.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
-  const comandaTotal = useMemo(() => {
+  function orderTotal(order: (typeof orders)[number]) {
+    return (
+      order.order_items?.reduce(
+        (s, item) => s + Number(item.unit_price) * Number(item.quantity),
+        0
+      ) ?? 0
+    );
+  }
+
+  const myTotal = useMemo(() => {
     return orders
       .filter((o) => o.status !== 'cancelado')
-      .reduce((sum, order) => {
-        const orderTotal = order.order_items?.reduce(
-          (s, item) => s + Number(item.unit_price) * item.quantity,
-          0
-        ) ?? 0;
-        return sum + orderTotal;
-      }, 0);
+      .reduce((sum, order) => sum + orderTotal(order), 0);
   }, [orders]);
 
   function addToCart(item: MenuItem) {
@@ -113,7 +114,10 @@ export function ClienteApp({
       setShowCart(false);
       setTab('pedidos');
       setMessage('Pedido enviado!');
+      await refresh();
       setTimeout(() => setMessage(''), 3000);
+    } else {
+      setMessage(result.error ?? 'Erro ao enviar pedido.');
     }
     setLoading(false);
   }
@@ -139,7 +143,7 @@ export function ClienteApp({
           </div>
           <div className="text-right">
             <p className="text-xs opacity-80">Total parcial</p>
-            <p className="font-bold">{formatCurrency(comandaTotal)}</p>
+            <p className="font-bold">{formatCurrency(myTotal)}</p>
           </div>
         </div>
       </header>
@@ -197,31 +201,40 @@ export function ClienteApp({
             ) : orders.length === 0 ? (
               <p className="text-center text-gray-500">Nenhum pedido ainda.</p>
             ) : (
-              orders.map((order) => (
-                <Card key={order.id}>
-                  <div className="flex items-center justify-between mb-2">
-                    <Badge color={PEDIDO_STATUS_COLORS[order.status]}>
-                      {PEDIDO_STATUS_LABELS[order.status]}
-                    </Badge>
-                    <span className="text-xs text-gray-400">
-                      {new Date(order.created_at).toLocaleTimeString('pt-BR', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
-                  </div>
-                  <ul className="space-y-1 text-sm">
-                    {order.order_items?.map((item) => (
-                      <li key={item.id} className="flex justify-between">
-                        <span>
-                          {item.quantity}x {item.menu_item?.name ?? 'Item'}
-                        </span>
-                        <span>{formatCurrency(Number(item.unit_price) * item.quantity)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </Card>
-              ))
+              orders.map((order) => {
+                const total = orderTotal(order);
+                return (
+                  <Card key={order.id}>
+                    <div className="flex items-center justify-between mb-2">
+                      <Badge color={PEDIDO_STATUS_COLORS[order.status]}>
+                        {PEDIDO_STATUS_LABELS[order.status]}
+                      </Badge>
+                      <span className="text-xs text-gray-400">
+                        {new Date(order.created_at).toLocaleTimeString('pt-BR', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+                    </div>
+                    <ul className="space-y-1 text-sm">
+                      {order.order_items?.map((item) => (
+                        <li key={item.id} className="flex justify-between gap-2">
+                          <span>
+                            {item.quantity}x {item.menu_item?.name ?? 'Item'}
+                          </span>
+                          <span className="shrink-0 font-medium">
+                            {formatCurrency(Number(item.unit_price) * Number(item.quantity))}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="mt-2 flex justify-between border-t pt-2 text-sm font-semibold">
+                      <span>Total do pedido</span>
+                      <span className="text-amber-700">{formatCurrency(total)}</span>
+                    </div>
+                  </Card>
+                );
+              })
             )}
           </div>
         )}
@@ -229,26 +242,36 @@ export function ClienteApp({
         {tab === 'conta' && (
           <div className="space-y-4">
             <Card>
-              <h3 className="font-semibold mb-3">Pessoas na comanda</h3>
-              <ul className="space-y-1 text-sm">
-                {people.map((p) => (
-                  <li key={p.id} className="flex items-center gap-2">
-                    <span>{p.name}</span>
-                    {p.id === person.id && (
-                      <Badge color="bg-amber-100 text-amber-800">você</Badge>
+              <h3 className="font-semibold mb-3">Sua comanda</h3>
+              {orders.filter((o) => o.status !== 'cancelado').length === 0 ? (
+                <p className="text-sm text-gray-500">Você ainda não fez pedidos.</p>
+              ) : (
+                <ul className="space-y-2 text-sm">
+                  {orders
+                    .filter((o) => o.status !== 'cancelado')
+                    .flatMap((order) =>
+                      (order.order_items ?? []).map((item) => (
+                        <li key={item.id} className="flex justify-between gap-2">
+                          <span>
+                            {item.quantity}x {item.menu_item?.name ?? 'Item'}
+                          </span>
+                          <span className="shrink-0">
+                            {formatCurrency(Number(item.unit_price) * Number(item.quantity))}
+                          </span>
+                        </li>
+                      ))
                     )}
-                  </li>
-                ))}
-              </ul>
+                </ul>
+              )}
             </Card>
 
             <Card>
               <div className="flex justify-between text-lg font-bold">
-                <span>Total</span>
-                <span className="text-amber-700">{formatCurrency(comandaTotal)}</span>
+                <span>Seu total</span>
+                <span className="text-amber-700">{formatCurrency(myTotal)}</span>
               </div>
               <p className="mt-1 text-xs text-gray-500">
-                * Taxa de serviço será aplicada no fechamento
+                Apenas os seus pedidos. A taxa de serviço é aplicada no fechamento.
               </p>
             </Card>
 
@@ -281,7 +304,7 @@ export function ClienteApp({
               tab === t ? 'text-amber-700 border-t-2 border-amber-700' : 'text-gray-500'
             }`}
           >
-            {t === 'cardapio' ? 'Cardápio' : t === 'pedidos' ? 'Pedidos' : 'Conta'}
+            {t === 'cardapio' ? 'Cardápio' : t === 'pedidos' ? `Pedidos${orders.length ? ` (${orders.length})` : ''}` : 'Minha conta'}
           </button>
         ))}
       </nav>
