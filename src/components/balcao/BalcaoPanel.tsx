@@ -27,10 +27,11 @@ interface OrderWithTable {
 }
 
 export function BalcaoPanel() {
-  const { orders, loading, newOrderAlert, dismissAlert, authError } = useRealtimeCounterOrders();
+  const { orders, loading, newOrderAlert, dismissAlert, authError, refresh, applyOrderStatus } =
+    useRealtimeCounterOrders();
   const [cancelModal, setCancelModal] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
-  const [actionLoading, setActionLoading] = useState(false);
+  const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
 
   const ordersByTable = (orders as OrderWithTable[]).reduce(
     (acc, order) => {
@@ -43,18 +44,32 @@ export function BalcaoPanel() {
   );
 
   async function handleAdvance(orderId: string, currentStatus: string) {
-    setActionLoading(true);
-    await advancePedidoStatus(orderId, currentStatus);
-    setActionLoading(false);
+    const nextStatus: Record<string, string> = {
+      pendente: 'em_preparo',
+      em_preparo: 'pronto',
+      pronto: 'entregue',
+    };
+    const status = nextStatus[currentStatus];
+    if (!status) return;
+
+    setBusyOrderId(orderId);
+    applyOrderStatus(orderId, status);
+    const result = await advancePedidoStatus(orderId, currentStatus);
+    if (!result.success) {
+      await refresh();
+    }
+    setBusyOrderId(null);
   }
 
   async function handleCancel() {
     if (!cancelModal || !cancelReason.trim()) return;
-    setActionLoading(true);
+    setBusyOrderId(cancelModal);
+    applyOrderStatus(cancelModal, 'cancelado');
     await cancelPedido(cancelModal, cancelReason);
     setCancelModal(null);
     setCancelReason('');
-    setActionLoading(false);
+    setBusyOrderId(null);
+    await refresh();
   }
 
   const nextAction: Record<string, string> = {
@@ -123,7 +138,7 @@ export function BalcaoPanel() {
                           <Button
                             size="sm"
                             onClick={() => handleAdvance(order.id, order.status)}
-                            loading={actionLoading}
+                            loading={busyOrderId === order.id}
                           >
                             {nextAction[order.status]}
                           </Button>
@@ -160,7 +175,7 @@ export function BalcaoPanel() {
             variant="danger"
             className="w-full"
             onClick={handleCancel}
-            loading={actionLoading}
+            loading={busyOrderId === cancelModal}
           >
             Confirmar cancelamento
           </Button>

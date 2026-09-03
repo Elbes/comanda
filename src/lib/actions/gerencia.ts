@@ -160,10 +160,14 @@ export async function openComandaByStaff(
     if (error || !comanda) return { success: false, error: 'Erro ao abrir comanda.' };
     lastComandaId = comanda.id;
 
-    await admin.from('comanda_people').insert({
+    const { error: personError } = await admin.from('comanda_people').insert({
       comanda_id: comanda.id,
       name: personName.trim(),
     });
+
+    if (personError) {
+      return { success: false, error: 'Erro ao cadastrar pessoa na comanda.' };
+    }
   }
 
   if (table.status === 'livre' || table.status === 'aguardando_pagamento') {

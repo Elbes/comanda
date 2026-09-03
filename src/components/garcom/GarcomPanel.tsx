@@ -61,6 +61,14 @@ function comandaTotal(comanda: ComandaData) {
     }, 0);
 }
 
+function peopleOf(comanda: ComandaData | null): ComandaPerson[] {
+  if (!comanda) return [];
+  const raw = comanda.comanda_people as unknown;
+  if (Array.isArray(raw)) return raw;
+  if (raw && typeof raw === 'object') return [raw as ComandaPerson];
+  return [];
+}
+
 export function GarcomPanel({ tables, menuItems }: Props) {
   const router = useRouter();
   const [tableNumber, setTableNumber] = useState('');
@@ -81,9 +89,9 @@ export function GarcomPanel({ tables, menuItems }: Props) {
   const [error, setError] = useState('');
 
   const comanda = comandas.find((c) => c.id === selectedComandaId) ?? comandas[0] ?? null;
-  const selectedPerson = comanda?.comanda_people?.[0];
+  const selectedPerson = peopleOf(comanda)[0];
 
-  async function loadTable(num: number) {
+  async function loadTable(num: number, preferComandaId?: string) {
     setError('');
     const table = tables.find((t) => t.number === num);
     if (!table) {
@@ -92,13 +100,16 @@ export function GarcomPanel({ tables, menuItems }: Props) {
     }
     setSelectedTable(table);
 
-    const res = await fetch(`/api/garcom/comanda?tableId=${table.id}`);
+    const res = await fetch(`/api/garcom/comanda?tableId=${table.id}`, { cache: 'no-store' });
     const data = await res.json();
     const list = (data.comandas ?? []) as ComandaData[];
     setComandas(list);
-    setSelectedComandaId((current) =>
-      list.some((item) => item.id === current) ? current : list[0]?.id ?? ''
-    );
+    const preferred =
+      (preferComandaId && list.some((item) => item.id === preferComandaId) && preferComandaId) ||
+      (selectedComandaId && list.some((item) => item.id === selectedComandaId) && selectedComandaId) ||
+      list[0]?.id ||
+      '';
+    setSelectedComandaId(preferred);
   }
 
   function handleSearch() {
@@ -116,7 +127,8 @@ export function GarcomPanel({ tables, menuItems }: Props) {
     const result = await openComandaByStaff(selectedTable.id, [newPersonName]);
     if (result.success) {
       setNewPersonName('');
-      await loadTable(selectedTable.number);
+      await loadTable(selectedTable.number, result.comandaId);
+      setError('');
     } else {
       setError(result.error ?? 'Erro');
     }
@@ -139,11 +151,21 @@ export function GarcomPanel({ tables, menuItems }: Props) {
   }
 
   async function handleSubmitOrder() {
-    if (!cart.length || !selectedPerson || !comanda) return;
+    if (!cart.length) return;
+    if (!comanda || !selectedPerson) {
+      setError('Selecione a comanda do cliente antes de lançar o pedido.');
+      return;
+    }
     setLoading(true);
-    await createPedido(cart, 'garcom', selectedPerson.id, comanda.id);
+    const result = await createPedido(cart, 'garcom', selectedPerson.id, comanda.id);
+    if (!result.success) {
+      setError(result.error ?? 'Não foi possível lançar o pedido.');
+      setLoading(false);
+      return;
+    }
     setCart([]);
-    if (selectedTable) await loadTable(selectedTable.number);
+    setError('');
+    await loadTable(selectedTable!.number, comanda.id);
     setLoading(false);
   }
 
@@ -246,7 +268,7 @@ export function GarcomPanel({ tables, menuItems }: Props) {
                 <h3 className="font-semibold mb-2">Comandas da mesa</h3>
                 <div className="flex flex-wrap gap-2 mb-3">
                   {comandas.map((item) => {
-                    const personName = item.comanda_people?.[0]?.name ?? 'Cliente';
+                    const personName = peopleOf(item)[0]?.name ?? 'Cliente';
                     return (
                       <button
                         key={item.id}
@@ -265,7 +287,9 @@ export function GarcomPanel({ tables, menuItems }: Props) {
               </Card>
 
               <Card>
-                <h3 className="font-semibold mb-3">Lançar pedido</h3>
+                <h3 className="font-semibold mb-3">
+                  Lançar pedido para {selectedPerson?.name ?? '—'}
+                </h3>
                 <div className="space-y-2 max-h-48 overflow-y-auto mb-3">
                   {menuItems
                     .filter((i) => i.available)

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import type { Order, OrderItem } from '@/lib/types/database';
+import type { Order, OrderItem, PedidoStatus } from '@/lib/types/database';
 
 interface OrderWithDetails extends Order {
   order_items: (OrderItem & { menu_item?: { name: string } })[];
@@ -40,25 +40,24 @@ export function useRealtimeCounterOrders() {
   const [newOrderAlert, setNewOrderAlert] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const supabase = createClient();
-
-    async function fetchOrders() {
-      const res = await fetch('/api/staff/pedidos');
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        setAuthError(body.error ?? 'Erro ao carregar pedidos.');
-        setOrders([]);
-        setLoading(false);
-        return;
-      }
-
-      const body = await res.json();
-      setOrders(body.orders ?? []);
-      setAuthError(null);
+  async function fetchOrders() {
+    const res = await fetch('/api/staff/pedidos', { cache: 'no-store' });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      setAuthError(body.error ?? 'Erro ao carregar pedidos.');
+      setOrders([]);
       setLoading(false);
+      return;
     }
 
+    const body = await res.json();
+    setOrders(body.orders ?? []);
+    setAuthError(null);
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    const supabase = createClient();
     fetchOrders();
 
     const channel = supabase
@@ -86,7 +85,7 @@ export function useRealtimeCounterOrders() {
       )
       .subscribe();
 
-    const interval = setInterval(fetchOrders, 15000);
+    const interval = setInterval(fetchOrders, 4000);
 
     return () => {
       clearInterval(interval);
@@ -96,5 +95,16 @@ export function useRealtimeCounterOrders() {
 
   const dismissAlert = () => setNewOrderAlert(false);
 
-  return { orders, loading, newOrderAlert, dismissAlert, authError };
+  function applyOrderStatus(orderId: string, status: string) {
+    setOrders((prev) => {
+      if (['pronto', 'entregue', 'cancelado'].includes(status)) {
+        return prev.filter((order) => order.id !== orderId);
+      }
+      return prev.map((order) =>
+        order.id === orderId ? { ...order, status: status as PedidoStatus } : order
+      );
+    });
+  }
+
+  return { orders, loading, newOrderAlert, dismissAlert, authError, refresh: fetchOrders, applyOrderStatus };
 }
