@@ -101,10 +101,10 @@ export function GarcomPanel({ tables, categories, menuItems }: Props) {
     [menuItems]
   );
   const menuCategories = useMemo(() => {
-    const withItems = categories.filter((cat) =>
-      availableItems.some((item) => item.category_id === cat.id)
+    return categories.filter(
+      (cat) =>
+        cat.active && availableItems.some((item) => item.category_id === cat.id)
     );
-    return withItems.length ? withItems : categories;
   }, [categories, availableItems]);
   const activeCategory = menuCategories.some((cat) => cat.id === selectedCategory)
     ? selectedCategory

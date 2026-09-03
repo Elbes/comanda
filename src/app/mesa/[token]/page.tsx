@@ -43,13 +43,16 @@ export default async function MesaPage({ params }: PageProps) {
       .eq('available', true)
       .order('display_order');
 
+    const activeCategoryIds = new Set((categories ?? []).map((category) => category.id));
+    const visibleItems = (items ?? []).filter((item) => activeCategoryIds.has(item.category_id));
+
     return (
       <ClienteApp
         table={session.table}
         comanda={session.comanda}
         person={session.person}
         categories={categories ?? []}
-        menuItems={items ?? []}
+        menuItems={visibleItems}
       />
     );
   }

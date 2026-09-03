@@ -366,6 +366,46 @@ export async function uploadMenuItemImage(
   return { success: true, url: data.publicUrl };
 }
 
+async function menuItemHasOrders(itemId: string) {
+  const admin = createAdminClient();
+  const { count } = await admin
+    .from('order_items')
+    .select('id', { count: 'exact', head: true })
+    .eq('menu_item_id', itemId);
+  return (count ?? 0) > 0;
+}
+
+async function categoryHasOrders(categoryId: string) {
+  const admin = createAdminClient();
+  const { data: items } = await admin.from('menu_items').select('id').eq('category_id', categoryId);
+  const ids = (items ?? []).map((item) => item.id);
+  if (ids.length === 0) return false;
+  const { count } = await admin
+    .from('order_items')
+    .select('id', { count: 'exact', head: true })
+    .in('menu_item_id', ids);
+  return (count ?? 0) > 0;
+}
+
+export async function updateMenuCategory(
+  id: string,
+  data: Partial<{ name: string; active: boolean }>
+): Promise<{ success: boolean; error?: string }> {
+  const used = await categoryHasOrders(id);
+  const onlyToggle = Object.keys(data).every((key) => key === 'active');
+  if (used && !onlyToggle) {
+    return {
+      success: false,
+      error: 'Esta categoria já teve pedidos. Só é possível ativar ou desativar.',
+    };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.from('menu_categories').update(data).eq('id', id);
+  if (error) return { success: false, error: 'Erro ao atualizar categoria.' };
+  return { success: true };
+}
+
 export async function createMenuItem(data: {
   category_id: string;
   name: string;
@@ -392,6 +432,15 @@ export async function updateMenuItem(
     image_url: string | null;
   }>
 ): Promise<{ success: boolean; error?: string }> {
+  const used = await menuItemHasOrders(id);
+  const onlyToggle = Object.keys(data).every((key) => key === 'available');
+  if (used && !onlyToggle) {
+    return {
+      success: false,
+      error: 'Este produto já teve pedidos. Só é possível ativar ou desativar.',
+    };
+  }
+
   const admin = createAdminClient();
   const { error } = await admin.from('menu_items').update(data).eq('id', id);
   if (error) return { success: false, error: 'Erro ao atualizar item.' };
@@ -399,6 +448,13 @@ export async function updateMenuItem(
 }
 
 export async function deleteMenuItem(id: string): Promise<{ success: boolean; error?: string }> {
+  if (await menuItemHasOrders(id)) {
+    return {
+      success: false,
+      error: 'Este produto já foi pedido. Desative-o em vez de remover.',
+    };
+  }
+
   const admin = createAdminClient();
   const { error } = await admin.from('menu_items').delete().eq('id', id);
   if (error) return { success: false, error: 'Erro ao remover item.' };
@@ -406,6 +462,13 @@ export async function deleteMenuItem(id: string): Promise<{ success: boolean; er
 }
 
 export async function deleteMenuCategory(id: string): Promise<{ success: boolean; error?: string }> {
+  if (await categoryHasOrders(id)) {
+    return {
+      success: false,
+      error: 'Esta categoria já teve pedidos. Desative-a em vez de remover.',
+    };
+  }
+
   const admin = createAdminClient();
   const { error } = await admin.from('menu_categories').delete().eq('id', id);
   if (error) return { success: false, error: 'Erro ao remover categoria.' };
