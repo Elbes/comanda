@@ -26,10 +26,6 @@ export default async function MesaPage({ params }: PageProps) {
     return <BlockedMessage reason="bloqueada" tableNumber={table.number} />;
   }
 
-  if (table.status === 'aguardando_pagamento') {
-    return <BlockedMessage reason="pagamento" tableNumber={table.number} />;
-  }
-
   const session = await getClientSession();
 
   if (session.person && session.comanda && session.table?.token === token) {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { getMyOrders } from '@/lib/actions/pedidos';
+import type { Order, OrderItem } from '@/lib/types/database';
 
 interface OrderWithDetails extends Order {
   order_items: (OrderItem & { menu_item?: { name: string } })[];
@@ -14,8 +14,9 @@ export function useMyOrders(enabled: boolean) {
   const [loading, setLoading] = useState(true);
 
   async function fetchOrders() {
-    const result = await getMyOrders();
-    setOrders((result.orders as OrderWithDetails[]) ?? []);
+    const res = await fetch('/api/cliente/pedidos', { cache: 'no-store' });
+    const body = await res.json().catch(() => ({ orders: [] }));
+    setOrders((body.orders as OrderWithDetails[]) ?? []);
     setLoading(false);
   }
 

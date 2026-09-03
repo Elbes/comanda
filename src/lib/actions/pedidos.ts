@@ -87,17 +87,36 @@ export async function getMyOrders() {
   }
 
   const admin = createAdminClient();
-  const { data } = await admin
+  const { data: orders } = await admin
     .from('orders')
-    .select(`
-      *,
-      order_items(*, menu_item:menu_items(name, price))
-    `)
+    .select('*')
     .eq('comanda_id', session.comanda.id)
     .eq('person_id', session.person.id)
     .order('created_at', { ascending: false });
 
-  return { orders: data ?? [] };
+  const orderList = orders ?? [];
+  const orderIds = orderList.map((order) => order.id);
+
+  if (orderIds.length === 0) {
+    return { orders: [] };
+  }
+
+  const { data: items } = await admin
+    .from('order_items')
+    .select('*, menu_items(name)')
+    .in('order_id', orderIds);
+
+  const ordersWithItems = orderList.map((order) => ({
+    ...order,
+    order_items: (items ?? [])
+      .filter((item) => item.order_id === order.id)
+      .map((item) => ({
+        ...item,
+        menu_item: Array.isArray(item.menu_items) ? item.menu_items[0] : item.menu_items,
+      })),
+  }));
+
+  return { orders: ordersWithItems };
 }
 
 export async function updatePedidoStatus(

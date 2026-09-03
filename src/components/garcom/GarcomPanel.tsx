@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   openComandaByStaff,
-  addPersonToComanda,
   toggleMesaBlock,
 } from '@/lib/actions/gerencia';
 import { createPedido } from '@/lib/actions/pedidos';
@@ -48,16 +47,30 @@ interface Props {
   menuItems: MenuItem[];
 }
 
-export function GarcomPanel({ tables, categories, menuItems }: Props) {
+function comandaTotal(comanda: ComandaData) {
+  return (comanda.orders ?? [])
+    .filter((order) => order.status !== 'cancelado')
+    .reduce((sum, order) => {
+      return (
+        sum +
+        (order.order_items ?? []).reduce(
+          (s, item) => s + Number(item.quantity) * Number(item.unit_price),
+          0
+        )
+      );
+    }, 0);
+}
+
+export function GarcomPanel({ tables, menuItems }: Props) {
   const router = useRouter();
   const [tableNumber, setTableNumber] = useState('');
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
-  const [comanda, setComanda] = useState<ComandaData | null>(null);
+  const [comandas, setComandas] = useState<ComandaData[]>([]);
   const [newPersonName, setNewPersonName] = useState('');
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [selectedPerson, setSelectedPerson] = useState('');
+  const [selectedComandaId, setSelectedComandaId] = useState('');
   const [showCloseModal, setShowCloseModal] = useState(false);
-  const [divisionType, setDivisionType] = useState<DivisaoTipo>('igual');
+  const [divisionType, setDivisionType] = useState<DivisaoTipo>('por_pessoa');
   const [paymentMethod, setPaymentMethod] = useState<PagamentoForma>('pix');
   const [closePreview, setClosePreview] = useState<{
     subtotal: number;
@@ -66,6 +79,9 @@ export function GarcomPanel({ tables, categories, menuItems }: Props) {
   } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const comanda = comandas.find((c) => c.id === selectedComandaId) ?? comandas[0] ?? null;
+  const selectedPerson = comanda?.comanda_people?.[0];
 
   async function loadTable(num: number) {
     setError('');
@@ -78,10 +94,11 @@ export function GarcomPanel({ tables, categories, menuItems }: Props) {
 
     const res = await fetch(`/api/garcom/comanda?tableId=${table.id}`);
     const data = await res.json();
-    setComanda(data.comanda);
-    if (data.comanda?.comanda_people?.length) {
-      setSelectedPerson(data.comanda.comanda_people[0].id);
-    }
+    const list = (data.comandas ?? []) as ComandaData[];
+    setComandas(list);
+    setSelectedComandaId((current) =>
+      list.some((item) => item.id === current) ? current : list[0]?.id ?? ''
+    );
   }
 
   function handleSearch() {
@@ -106,15 +123,6 @@ export function GarcomPanel({ tables, categories, menuItems }: Props) {
     setLoading(false);
   }
 
-  async function handleAddPerson() {
-    if (!comanda || !newPersonName.trim()) return;
-    setLoading(true);
-    await addPersonToComanda(comanda.id, newPersonName);
-    setNewPersonName('');
-    if (selectedTable) await loadTable(selectedTable.number);
-    setLoading(false);
-  }
-
   function addToCart(item: MenuItem) {
     setCart((prev) => {
       const existing = prev.find((c) => c.menuItemId === item.id);
@@ -133,7 +141,7 @@ export function GarcomPanel({ tables, categories, menuItems }: Props) {
   async function handleSubmitOrder() {
     if (!cart.length || !selectedPerson || !comanda) return;
     setLoading(true);
-    await createPedido(cart, 'garcom', selectedPerson, comanda.id);
+    await createPedido(cart, 'garcom', selectedPerson.id, comanda.id);
     setCart([]);
     if (selectedTable) await loadTable(selectedTable.number);
     setLoading(false);
@@ -165,8 +173,7 @@ export function GarcomPanel({ tables, categories, menuItems }: Props) {
     });
     if (result.success) {
       setShowCloseModal(false);
-      setComanda(null);
-      setSelectedTable(null);
+      if (selectedTable) await loadTable(selectedTable.number);
       router.refresh();
     }
     setLoading(false);
@@ -215,9 +222,11 @@ export function GarcomPanel({ tables, categories, menuItems }: Props) {
             </div>
           </Card>
 
-          {!comanda && selectedTable.status !== 'bloqueada' && (
+          {selectedTable.status !== 'bloqueada' && (
             <Card>
-              <h3 className="font-semibold mb-3">Abrir comanda</h3>
+              <h3 className="font-semibold mb-3">
+                {comandas.length ? 'Nova comanda nesta mesa' : 'Abrir comanda'}
+              </h3>
               <div className="flex gap-2">
                 <Input
                   placeholder="Nome do cliente"
@@ -234,31 +243,24 @@ export function GarcomPanel({ tables, categories, menuItems }: Props) {
           {comanda && (
             <>
               <Card>
-                <h3 className="font-semibold mb-2">Pessoas</h3>
+                <h3 className="font-semibold mb-2">Comandas da mesa</h3>
                 <div className="flex flex-wrap gap-2 mb-3">
-                  {comanda.comanda_people.map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => setSelectedPerson(p.id)}
-                      className={`rounded-full px-3 py-1 text-sm ${
-                        selectedPerson === p.id
-                          ? 'bg-amber-600 text-white'
-                          : 'bg-gray-100'
-                      }`}
-                    >
-                      {p.name}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Adicionar pessoa"
-                    value={newPersonName}
-                    onChange={(e) => setNewPersonName(e.target.value)}
-                  />
-                  <Button size="sm" onClick={handleAddPerson} loading={loading}>
-                    +
-                  </Button>
+                  {comandas.map((item) => {
+                    const personName = item.comanda_people?.[0]?.name ?? 'Cliente';
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => setSelectedComandaId(item.id)}
+                        className={`rounded-full px-3 py-1 text-sm ${
+                          selectedComandaId === item.id
+                            ? 'bg-amber-600 text-white'
+                            : 'bg-gray-100'
+                        }`}
+                      >
+                        {personName} · {formatCurrency(comandaTotal(item))}
+                      </button>
+                    );
+                  })}
                 </div>
               </Card>
 
@@ -287,7 +289,9 @@ export function GarcomPanel({ tables, categories, menuItems }: Props) {
               </Card>
 
               <Card>
-                <h3 className="font-semibold mb-3">Extrato</h3>
+                <h3 className="font-semibold mb-3">
+                  Extrato de {selectedPerson?.name ?? 'cliente'} — {formatCurrency(comandaTotal(comanda))}
+                </h3>
                 {comanda.orders?.length === 0 ? (
                   <p className="text-sm text-gray-500">Sem pedidos.</p>
                 ) : (
@@ -336,8 +340,8 @@ export function GarcomPanel({ tables, categories, menuItems }: Props) {
                 value={divisionType}
                 onChange={(e) => setDivisionType(e.target.value as DivisaoTipo)}
               >
-                <option value="igual">Igual entre todos</option>
-                <option value="por_pessoa">Por pessoa</option>
+                <option value="por_pessoa">Conta individual</option>
+                <option value="igual">Igual (se houver mais de uma pessoa nesta comanda)</option>
                 <option value="livre">Livre</option>
               </select>
             </div>
@@ -357,7 +361,7 @@ export function GarcomPanel({ tables, categories, menuItems }: Props) {
             </div>
 
             <Button className="w-full" size="lg" onClick={handleCloseAccount} loading={loading}>
-              Confirmar fechamento
+              Fechar conta desta pessoa
             </Button>
           </div>
         )}

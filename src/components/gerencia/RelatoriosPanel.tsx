@@ -16,40 +16,47 @@ export async function RelatoriosPanel() {
 
   const { data: orders } = await admin
     .from('orders')
-    .select('id, status, cancel_reason, created_at, order_items(quantity, unit_price, menu_item:menu_items(name))')
+    .select('id, status, cancel_reason, created_at')
     .gte('created_at', since)
     .order('created_at', { ascending: false });
 
-  const validOrders = (orders ?? []).filter((o) => o.status !== 'cancelado');
-  const cancelledOrders = (orders ?? []).filter((o) => o.status === 'cancelado');
+  const orderList = orders ?? [];
+  const validOrders = orderList.filter((o) => o.status !== 'cancelado');
+  const cancelledOrders = orderList.filter((o) => o.status === 'cancelado');
+  const validIds = validOrders.map((o) => o.id);
 
-  const salesTotal = validOrders.reduce((sum, order) => {
-    const items = (order.order_items ?? []) as Array<{ quantity: number; unit_price: number }>;
-    return sum + items.reduce((s, item) => s + Number(item.quantity) * Number(item.unit_price), 0);
-  }, 0);
+  const { data: items } = validIds.length
+    ? await admin
+        .from('order_items')
+        .select('order_id, quantity, unit_price, menu_item_id, menu_items(name)')
+        .in('order_id', validIds)
+    : { data: [] as Array<{
+        order_id: string;
+        quantity: number;
+        unit_price: number;
+        menu_items: { name: string } | { name: string }[] | null;
+      }> };
 
-  const closedRevenue = payments?.reduce((sum, p) => sum + Number(p.total), 0) ?? 0;
-  const avgTicket = validOrders.length ? salesTotal / validOrders.length : 0;
+  const itemRows = items ?? [];
 
+  const salesByOrder = new Map<string, number>();
   const itemMap = new Map<string, { name: string; quantity: number; revenue: number }>();
-  for (const order of validOrders) {
-    const items = (order.order_items ?? []) as Array<{
-      quantity: number;
-      unit_price: number;
-      menu_item: { name: string } | null;
-    }>;
-    for (const item of items) {
-      const name = item.menu_item?.name ?? 'Item removido';
-      const current = itemMap.get(name) ?? { name, quantity: 0, revenue: 0 };
-      current.quantity += Number(item.quantity);
-      current.revenue += Number(item.quantity) * Number(item.unit_price);
-      itemMap.set(name, current);
-    }
+
+  for (const item of itemRows) {
+    const value = Number(item.quantity) * Number(item.unit_price);
+    salesByOrder.set(item.order_id, (salesByOrder.get(item.order_id) ?? 0) + value);
+    const menu = Array.isArray(item.menu_items) ? item.menu_items[0] : item.menu_items;
+    const name = menu?.name ?? 'Item';
+    const current = itemMap.get(name) ?? { name, quantity: 0, revenue: 0 };
+    current.quantity += Number(item.quantity);
+    current.revenue += value;
+    itemMap.set(name, current);
   }
 
-  const topItems = [...itemMap.values()]
-    .sort((a, b) => b.quantity - a.quantity)
-    .slice(0, 10);
+  const salesTotal = [...salesByOrder.values()].reduce((sum, value) => sum + value, 0);
+  const closedRevenue = payments?.reduce((sum, p) => sum + Number(p.total), 0) ?? 0;
+  const avgTicket = validOrders.length ? salesTotal / validOrders.length : 0;
+  const topItems = [...itemMap.values()].sort((a, b) => b.quantity - a.quantity).slice(0, 10);
 
   return (
     <div className="space-y-6">

@@ -42,8 +42,8 @@ export function JoinForm({ table }: Props) {
           <h1 className="text-4xl font-bold text-amber-700">{table.number}</h1>
           <p className="mt-2 text-gray-600">
             {isNewComanda
-              ? 'Bem-vindo! Informe seu nome para abrir a comanda.'
-              : 'Informe seu nome para entrar na comanda.'}
+              ? 'Bem-vindo! Informe seu nome para abrir a sua comanda.'
+              : 'Informe seu nome para abrir a sua comanda nesta mesa.'}
           </p>
         </div>
 
@@ -60,7 +60,7 @@ export function JoinForm({ table }: Props) {
           {error && <p className="text-sm text-red-600 text-center">{error}</p>}
 
           <Button type="submit" className="w-full" size="lg" loading={loading}>
-            {isNewComanda ? 'Abrir comanda' : 'Entrar na comanda'}
+            Abrir minha comanda
           </Button>
         </form>
       </div>

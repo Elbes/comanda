@@ -138,9 +138,14 @@ export async function openComandaByStaff(
     return { success: false, error: 'Mesa bloqueada.' };
   }
 
-  let comandaId: string;
+  const validNames = peopleNames.filter((n) => n.trim().length >= 2);
+  if (validNames.length === 0) {
+    return { success: false, error: 'Informe o nome da pessoa.' };
+  }
 
-  if (table.status === 'livre') {
+  let lastComandaId: string | undefined;
+
+  for (const personName of validNames) {
     const { data: comanda, error } = await admin
       .from('comandas')
       .insert({
@@ -153,44 +158,37 @@ export async function openComandaByStaff(
       .single();
 
     if (error || !comanda) return { success: false, error: 'Erro ao abrir comanda.' };
-    comandaId = comanda.id;
+    lastComandaId = comanda.id;
 
+    await admin.from('comanda_people').insert({
+      comanda_id: comanda.id,
+      name: personName.trim(),
+    });
+  }
+
+  if (table.status === 'livre' || table.status === 'aguardando_pagamento') {
     await admin.from('tables').update({ status: 'ocupada' }).eq('id', tableId);
-  } else {
-    const { data: existing } = await admin
-      .from('comandas')
-      .select('id')
-      .eq('table_id', tableId)
-      .eq('status', 'aberta')
-      .single();
-
-    if (!existing) return { success: false, error: 'Comanda aberta não encontrada.' };
-    comandaId = existing.id;
   }
 
-  const validNames = peopleNames.filter((n) => n.trim().length >= 2);
-  if (validNames.length > 0) {
-    await admin.from('comanda_people').insert(
-      validNames.map((name) => ({ comanda_id: comandaId, name: name.trim() }))
-    );
-  }
-
-  return { success: true, comandaId };
+  return { success: true, comandaId: lastComandaId };
 }
 
 export async function addPersonToComanda(
   comandaId: string,
   name: string
-): Promise<{ success: boolean; error?: string; personId?: string }> {
+): Promise<{ success: boolean; error?: string; personId?: string; comandaId?: string }> {
   const admin = createAdminClient();
-  const { data, error } = await admin
-    .from('comanda_people')
-    .insert({ comanda_id: comandaId, name: name.trim() })
-    .select()
+  const { data: current } = await admin
+    .from('comandas')
+    .select('table_id')
+    .eq('id', comandaId)
     .single();
 
-  if (error) return { success: false, error: 'Erro ao adicionar pessoa.' };
-  return { success: true, personId: data.id };
+  if (!current) return { success: false, error: 'Comanda não encontrada.' };
+
+  const result = await openComandaByStaff(current.table_id, [name]);
+  if (!result.success) return result;
+  return { success: true, comandaId: result.comandaId };
 }
 
 async function insertSystemUser(

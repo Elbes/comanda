@@ -153,10 +153,15 @@ export async function closeAccount(
     .update({ status: 'fechada', closed_at: new Date().toISOString() })
     .eq('id', input.comandaId);
 
-  await admin
-    .from('tables')
-    .update({ status: 'livre' })
-    .eq('id', comanda.table_id);
+  const { count: openCount } = await admin
+    .from('comandas')
+    .select('*', { count: 'exact', head: true })
+    .eq('table_id', comanda.table_id)
+    .eq('status', 'aberta');
+
+  if (!openCount) {
+    await admin.from('tables').update({ status: 'livre' }).eq('id', comanda.table_id);
+  }
 
   return { success: true, paymentId: payment.id };
 }

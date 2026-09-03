@@ -38,53 +38,25 @@ export async function joinComanda(
     return { success: false, error: 'Esta mesa está bloqueada. Chame o garçom.' };
   }
 
-  if (table.status === 'aguardando_pagamento') {
-    return {
-      success: false,
-      error: 'Esta mesa está aguardando pagamento. Chame o garçom.',
-    };
-  }
+  const { data: newComanda, error: comandaError } = await admin
+    .from('comandas')
+    .insert({
+      table_id: table.id,
+      status: 'aberta',
+      opened_by: 'cliente',
+    })
+    .select()
+    .single();
 
-  let comanda: Comanda | null = null;
-
-  if (table.status === 'livre') {
-    const { data: newComanda, error: comandaError } = await admin
-      .from('comandas')
-      .insert({
-        table_id: table.id,
-        status: 'aberta',
-        opened_by: 'cliente',
-      })
-      .select()
-      .single();
-
-    if (comandaError || !newComanda) {
-      return { success: false, error: 'Erro ao abrir comanda.' };
-    }
-
-    await admin
-      .from('tables')
-      .update({ status: 'ocupada' })
-      .eq('id', table.id);
-
-    comanda = newComanda;
-  } else {
-    const { data: existingComanda } = await admin
-      .from('comandas')
-      .select('*')
-      .eq('table_id', table.id)
-      .eq('status', 'aberta')
-      .single();
-
-    if (!existingComanda) {
-      return { success: false, error: 'Comanda não encontrada para esta mesa.' };
-    }
-    comanda = existingComanda;
-  }
-
-  if (!comanda) {
+  if (comandaError || !newComanda) {
     return { success: false, error: 'Erro ao abrir comanda.' };
   }
+
+  if (table.status === 'livre' || table.status === 'aguardando_pagamento') {
+    await admin.from('tables').update({ status: 'ocupada' }).eq('id', table.id);
+  }
+
+  const comanda = newComanda;
 
   const { data: person, error: personError } = await admin
     .from('comanda_people')
@@ -171,13 +143,6 @@ export async function requestPayment(): Promise<{ success: boolean; error?: stri
   if (!comanda || !table) {
     return { success: false, error: 'Sessão inválida.' };
   }
-
-  const admin = createAdminClient();
-
-  await admin
-    .from('tables')
-    .update({ status: 'aguardando_pagamento' })
-    .eq('id', table.id);
 
   return { success: true };
 }

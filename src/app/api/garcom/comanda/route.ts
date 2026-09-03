@@ -4,12 +4,12 @@ import { createAdminClient } from '@/lib/supabase/admin';
 export async function GET(request: NextRequest) {
   const tableId = request.nextUrl.searchParams.get('tableId');
   if (!tableId) {
-    return NextResponse.json({ comanda: null });
+    return NextResponse.json({ comandas: [] });
   }
 
   const admin = createAdminClient();
 
-  const { data: comanda } = await admin
+  const { data: comandas } = await admin
     .from('comandas')
     .select(`
       *,
@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     `)
     .eq('table_id', tableId)
     .eq('status', 'aberta')
-    .single();
+    .order('opened_at', { ascending: true });
 
-  return NextResponse.json({ comanda });
+  return NextResponse.json({ comandas: comandas ?? [] });
 }
