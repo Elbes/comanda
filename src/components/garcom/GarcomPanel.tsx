@@ -81,8 +81,6 @@ export function GarcomPanel({ tables: initialTables, categories, menuItems }: Pr
   const router = useRouter();
   const {
     tables: paymentTables,
-    alertVisible,
-    dismissAlert,
     refresh: refreshPaymentAlerts,
   } = usePaymentAlerts();
   const [tableNumber, setTableNumber] = useState('');
@@ -176,7 +174,6 @@ export function GarcomPanel({ tables: initialTables, categories, menuItems }: Pr
   }
 
   async function handleOpenAlertTable(tableNumberToOpen: number) {
-    dismissAlert();
     await loadTable(tableNumberToOpen);
   }
 
@@ -261,9 +258,13 @@ export function GarcomPanel({ tables: initialTables, categories, menuItems }: Pr
     setLoading(false);
   }
 
+  const openPaymentButtons = paymentTables.filter(
+    (table) => table.id !== selectedTable?.id
+  );
+
   return (
     <div className="space-y-4">
-      {alertVisible && paymentTables.length > 0 && (
+      {paymentTables.length > 0 && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
           <div className="flex items-start justify-between gap-3">
             <div>
@@ -273,21 +274,20 @@ export function GarcomPanel({ tables: initialTables, categories, menuItems }: Pr
                   ? `Mesa ${paymentTables[0].number} pediu o fechamento.`
                   : `Mesas ${paymentTables.map((t) => t.number).join(', ')} pediram o fechamento.`}
               </p>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {paymentTables.map((table) => (
-                  <Button
-                    key={table.id}
-                    size="sm"
-                    onClick={() => handleOpenAlertTable(table.number)}
-                  >
-                    Abrir mesa {table.number}
-                  </Button>
-                ))}
-              </div>
+              {openPaymentButtons.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {openPaymentButtons.map((table) => (
+                    <Button
+                      key={table.id}
+                      size="sm"
+                      onClick={() => handleOpenAlertTable(table.number)}
+                    >
+                      Abrir mesa {table.number}
+                    </Button>
+                  ))}
+                </div>
+              )}
             </div>
-            <Button size="sm" variant="secondary" onClick={dismissAlert}>
-              OK
-            </Button>
           </div>
         </div>
       )}
