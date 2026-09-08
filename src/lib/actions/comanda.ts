@@ -138,11 +138,38 @@ export async function getClientSession(): Promise<{
 }
 
 export async function requestPayment(): Promise<{ success: boolean; error?: string }> {
-  const { comanda, table } = await getClientSession();
+  const { person, comanda, table } = await getClientSession();
 
-  if (!comanda || !table) {
+  if (!person || !comanda || !table) {
     return { success: false, error: 'Sessão inválida.' };
   }
+
+  if (comanda.status !== 'aberta') {
+    return { success: false, error: 'Comanda já está fechada.' };
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from('tables')
+    .update({ status: 'aguardando_pagamento' })
+    .eq('id', table.id);
+
+  if (error) {
+    return { success: false, error: 'Erro ao solicitar a conta.' };
+  }
+
+  await admin.from('audit_logs').insert({
+    action: 'request_payment',
+    entity_type: 'table',
+    entity_id: table.id,
+    session_token: person.session_token,
+    metadata: {
+      comanda_id: comanda.id,
+      person_id: person.id,
+      person_name: person.name,
+      table_number: table.number,
+    },
+  });
 
   return { success: true };
 }

@@ -161,6 +161,8 @@ export async function closeAccount(
 
   if (!openCount) {
     await admin.from('tables').update({ status: 'livre' }).eq('id', comanda.table_id);
+  } else {
+    await admin.from('tables').update({ status: 'ocupada' }).eq('id', comanda.table_id);
   }
 
   return { success: true, paymentId: payment.id };
