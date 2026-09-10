@@ -265,7 +265,7 @@ export function GarcomPanel({ tables: initialTables, categories, menuItems }: Pr
   return (
     <div className="space-y-4">
       {paymentTables.length > 0 && (
-        <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 shadow-sm shadow-amber-900/5">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="font-semibold text-amber-900">Solicitação de conta</p>
@@ -385,16 +385,16 @@ export function GarcomPanel({ tables: initialTables, categories, menuItems }: Pr
                   Lançar pedido para {selectedPerson?.name ?? '—'}
                 </h3>
                 <div className="flex gap-3">
-                  <div className="max-h-72 w-32 shrink-0 space-y-1 overflow-y-auto border-r pr-2 sm:w-40">
+                  <div className="max-h-72 w-32 shrink-0 space-y-1.5 overflow-y-auto border-r border-stone-100 pr-2 sm:w-40">
                     {menuCategories.map((cat) => (
                       <button
                         key={cat.id}
                         type="button"
                         onClick={() => setSelectedCategory(cat.id)}
-                        className={`block w-full rounded-lg px-2.5 py-2 text-left text-sm font-medium ${
+                        className={`block w-full rounded-2xl px-2.5 py-2.5 text-left text-sm font-semibold transition-colors ${
                           activeCategory === cat.id
-                            ? 'bg-amber-600 text-white'
-                            : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                            ? 'bg-amber-600 text-white shadow-sm shadow-amber-600/25'
+                            : 'bg-stone-50 text-stone-700 hover:bg-stone-100'
                         }`}
                       >
                         {cat.name}

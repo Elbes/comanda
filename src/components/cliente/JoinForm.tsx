@@ -35,34 +35,38 @@ export function JoinForm({ table }: Props) {
   const isNewComanda = table.status === 'livre';
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center p-6">
+    <main className="client-shell flex min-h-screen flex-col items-center justify-center p-6">
       <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <p className="text-sm text-gray-500">Mesa</p>
-          <h1 className="text-4xl font-bold text-amber-700">{table.number}</h1>
-          <p className="mt-2 text-gray-600">
+        <div className="mb-8 text-center">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700/80">
+            Mesa
+          </p>
+          <h1 className="mt-1 text-5xl font-bold tracking-tight text-stone-900">{table.number}</h1>
+          <p className="mt-3 text-stone-600">
             {isNewComanda
               ? 'Bem-vindo! Informe seu nome para abrir a sua comanda.'
               : 'Informe seu nome para abrir a sua comanda nesta mesa.'}
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <Input
-            label="Seu nome"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Como podemos te chamar?"
-            required
-            autoFocus
-          />
+        <div className="rounded-3xl border border-stone-200/80 bg-white/95 p-6 shadow-xl shadow-stone-900/5 backdrop-blur">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <Input
+              label="Seu nome"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Como podemos te chamar?"
+              required
+              autoFocus
+            />
 
-          {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+            {error && <p className="text-center text-sm text-red-600">{error}</p>}
 
-          <Button type="submit" className="w-full" size="lg" loading={loading}>
-            Abrir minha comanda
-          </Button>
-        </form>
+            <Button type="submit" className="w-full" size="lg" loading={loading}>
+              Abrir minha comanda
+            </Button>
+          </form>
+        </div>
       </div>
     </main>
   );

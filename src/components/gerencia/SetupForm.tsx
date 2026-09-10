@@ -28,12 +28,14 @@ export function SetupForm() {
 
   if (success) {
     return (
-      <main className="flex min-h-screen items-center justify-center p-6">
-        <div className="text-center">
+      <main className="staff-shell flex min-h-screen items-center justify-center p-6">
+        <div className="w-full max-w-md rounded-3xl border border-stone-200/80 bg-white p-8 text-center shadow-xl shadow-stone-900/5">
           <h1 className="text-2xl font-bold text-green-700">Configuração concluída!</h1>
-          <p className="mt-2 text-gray-600">
+          <p className="mt-2 text-stone-600">
             Usuário de gerência criado. Faça login em{' '}
-            <a href="/login" className="text-amber-700 underline">/login</a>
+            <a href="/login" className="font-semibold text-amber-700 underline">
+              /login
+            </a>
           </p>
         </div>
       </main>
@@ -41,42 +43,44 @@ export function SetupForm() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-6">
-      <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-bold text-center text-amber-700">Configuração inicial</h1>
-        <p className="mt-1 text-center text-sm text-gray-500">
-          Crie o primeiro usuário de gerência
-        </p>
+    <main className="staff-shell flex min-h-screen items-center justify-center p-6">
+      <div className="w-full max-w-md">
+        <div className="mb-6 text-center">
+          <h1 className="text-3xl font-bold tracking-tight text-stone-900">Configuração inicial</h1>
+          <p className="mt-1 text-sm text-stone-500">Crie o primeiro usuário de gerência</p>
+        </div>
 
-        <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-          <Input
-            label="Nome"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            required
-          />
-          <Input
-            label="E-mail"
-            type="email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            required
-          />
-          <Input
-            label="Senha"
-            type="password"
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-            required
-            minLength={6}
-          />
+        <div className="rounded-3xl border border-stone-200/80 bg-white p-6 shadow-xl shadow-stone-900/5">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <Input
+              label="Nome"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              required
+            />
+            <Input
+              label="E-mail"
+              type="email"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              required
+            />
+            <Input
+              label="Senha"
+              type="password"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              required
+              minLength={6}
+            />
 
-          {error && <p className="text-sm text-red-600 text-center">{error}</p>}
+            {error && <p className="text-center text-sm text-red-600">{error}</p>}
 
-          <Button type="submit" className="w-full" loading={loading}>
-            Criar administrador
-          </Button>
-        </form>
+            <Button type="submit" className="w-full" size="lg" loading={loading}>
+              Criar administrador
+            </Button>
+          </form>
+        </div>
       </div>
     </main>
   );

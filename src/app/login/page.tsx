@@ -29,41 +29,46 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-6">
-      <div className="w-full max-w-sm">
-        <h1 className="text-2xl font-bold text-center text-amber-700">Comanda QR</h1>
-        <p className="mt-1 text-center text-sm text-gray-500">Acesso da equipe</p>
+    <main className="staff-shell flex min-h-screen items-center justify-center p-6">
+      <div className="w-full max-w-md">
+        <div className="mb-6 text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-amber-600 text-2xl font-bold text-white shadow-lg shadow-amber-600/30">
+            CQ
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-stone-900">Comanda QR</h1>
+          <p className="mt-1 text-sm text-stone-500">Faça seu login para acessar a equipe</p>
+        </div>
 
-        <form onSubmit={handleSubmit} className="mt-8 space-y-4">
-          <Input
-            label="E-mail"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoComplete="email"
-          />
-          <Input
-            label="Senha"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-          />
+        <div className="rounded-3xl border border-stone-200/80 bg-white p-6 shadow-xl shadow-stone-900/5">
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <Input
+              label="E-mail"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="email"
+            />
+            <Input
+              label="Senha"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+            />
 
-          {error && (
-            <p className="text-sm text-red-600 text-center">{error}</p>
-          )}
+            {error && <p className="text-center text-sm text-red-600">{error}</p>}
 
-          <Button type="submit" className="w-full" loading={loading}>
-            Entrar
-          </Button>
-        </form>
+            <Button type="submit" className="w-full" size="lg" loading={loading}>
+              Entrar
+            </Button>
+          </form>
+        </div>
 
-        <p className="mt-6 text-center text-sm text-gray-500">
+        <p className="mt-6 text-center text-sm text-stone-500">
           Primeira vez?{' '}
-          <a href="/gerencia/setup" className="text-amber-700 underline">
+          <a href="/gerencia/setup" className="font-semibold text-amber-700 underline-offset-2 hover:underline">
             Configurar administrador
           </a>
         </p>
