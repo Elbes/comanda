@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { MenuAvailabilityPanel } from '@/components/balcao/MenuAvailabilityPanel';
+import { GerenciaHomeLink } from '@/components/ui/GerenciaHomeLink';
 import { StaffShell } from '@/components/ui/StaffShell';
 
 export const dynamic = 'force-dynamic';
@@ -21,6 +22,7 @@ export default async function BalcaoCardapioPage() {
     <StaffShell
       title="Balcão — Cardápio"
       activePath="/balcao/cardapio"
+      actions={<GerenciaHomeLink />}
       navItems={[
         { href: '/balcao', label: 'Pedidos' },
         { href: '/balcao/cardapio', label: 'Cardápio' },

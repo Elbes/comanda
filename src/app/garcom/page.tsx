@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { GarcomPanel } from '@/components/garcom/GarcomPanel';
+import { GerenciaHomeLink } from '@/components/ui/GerenciaHomeLink';
 import { StaffShell } from '@/components/ui/StaffShell';
 
 export const dynamic = 'force-dynamic';
@@ -12,7 +13,7 @@ export default async function GarcomPage() {
   const { data: menuItems } = await admin.from('menu_items').select('*').order('display_order');
 
   return (
-    <StaffShell title="Garçom">
+    <StaffShell title="Garçom" actions={<GerenciaHomeLink />}>
       <GarcomPanel
         tables={tables ?? []}
         categories={categories ?? []}
